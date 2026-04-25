@@ -22,16 +22,38 @@ The group members declare that they have not copied material from the Internet
 
 2. Group members and allocation of effort
 
-Fill in the lines below with the name and email of the group members.
-Replace XX with the contribution of each group member in the development of the work.
-
 Gabriel Martins Miranda <gabrielmartinsufmg@ufmg.br> 40% (Task 1 e Task 2)
-Name <email@ufmg.br> XX%
+Kauan Teixeira Pereira <kauantp@ufmg.br> 60% (Tasks 3, 4 e 5)
 
 3. Solutions
 
-Task 1: Na Tarefa 1, a função fork1 foi implementada usando fork(), com verificação de erro. Se falhar, imprime mensagem com perror; caso contrário, retorna o PID
-Task 2, Na Tarefa 2, a função handle_simple_cmd usa execvp para executar comandos. Essa função foi escolhida porque busca o programa no PATH, permitindo executar comandos como ls sem caminho completo. Em caso de erro, imprime mensagem e encerra o processo.
+Task 1:
+  A função fork1 foi implementada usando fork(), com verificação de erro.
+  Se falhar, imprime mensagem com perror; caso contrário, retorna o PID.
+
+Task 2:
+  A função handle_simple_cmd usa execvp para executar comandos. Essa função
+  foi escolhida porque busca o programa no PATH, permitindo executar comandos
+  como ls sem caminho completo. Em caso de erro, imprime mensagem e encerra
+  o processo.
+
+Task 3:
+  A função handle_redirection implementa o redirecionamento de entrada e
+  saída. Ela fecha o descritor de arquivo alvo (stdin ou stdout), e em
+  seguida abre o arquivo com o modo adequado. O kernel atribui
+  automaticamente o menor fd disponível, que será exatamente o que foi
+  fechado, realizando assim o redirecionamento.
+
+Task 4:
+  A função handle_pipe implementa o encadeamento de comandos via pipe. Ela
+  cria um pipe com pipe(), faz fork para o lado esquerdo redirecionando
+  stdout para a escrita do pipe, e outro fork para o lado direito
+  redirecionando stdin para a leitura do pipe. O processo pai fecha ambas
+  as extremidades e aguarda os dois filhos terminarem.
+
+Task 5:
+  O cd é tratado como built-in diretamente no shell, sem fork. A justificativa
+  detalhada está no comentário inline abaixo, junto ao código.
 
 4. Bibliographic references
 
@@ -136,13 +158,38 @@ void handle_simple_cmd(struct execcmd *ecmd) {
 
 void handle_redirection(struct redircmd *rcmd) {
     /* Task 3: Implement the code below to handle input/output redirection. */
-    fprintf(stderr, "redir not implemented\n");
+    close(rcmd->fd);
+    if (open(rcmd->file, rcmd->mode, 0644) < 0) {
+        perror("open");
+        exit(-1);
+    }
     /* END OF TASK 3 */
 }
 
 void handle_pipe(struct pipecmd *pcmd, int *p, int r) {
     /* Task 4: Implement the code below to handle pipes. */
-    fprintf(stderr, "pipe not implemented\n");
+    if (pipe(p) < 0) {
+        perror("pipe");
+        exit(-1);
+    }
+    // Left side: write end of pipe becomes stdout
+    if (fork1() == 0) {
+        dup2(p[1], 1);
+        close(p[0]);
+        close(p[1]);
+        runcmd(pcmd->left);
+    }
+    // Right side: read end of pipe becomes stdin
+    if (fork1() == 0) {
+        dup2(p[0], 0);
+        close(p[0]);
+        close(p[1]);
+        runcmd(pcmd->right);
+    }
+    close(p[0]);
+    close(p[1]);
+    wait(&r);
+    wait(&r);
     /* END OF TASK 4 */
 }
 
@@ -165,12 +212,20 @@ int main(void) {
         /* Task 5: Explain the purpose of the if statement below and correct the error message.
         Why is the current error message incorrect? Justify the new message. */
         /* Answer:
+        O bloco if trata o comando cd como um built-in, executado diretamente no processo
+        do shell, sem fork. Isso é necessário porque chdir() altera apenas o diretório de
+        trabalho do processo que o chama. Se cd fosse executado em um processo filho,
+        apenas o filho mudaria de diretório, e o shell permaneceria no mesmo lugar.
 
+        A mensagem de erro original "process does not exist" está incorreta pois chdir()
+        não tem relação com processos. Ela falha quando o diretório não existe ou o usuário
+        não tem permissão de acesso. O uso de perror("cd") exibe o erro real do sistema
+        operacional, descrevendo corretamente a falha (ex: "No such file or directory").
          */
         if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ') {
             buf[strlen(buf) - 1] = 0;
             if (chdir(buf + 3) < 0)
-                fprintf(stderr, "process does not exist\n");
+                perror("cd");
             continue;
         }
         /* END OF TASK 5 */
