@@ -57,7 +57,9 @@ Task 5:
 
 4. Bibliographic references
 
-Add the bibliographic references here.
+TEODORO, G. L. M. Slides da disciplina de Sistemas Operacionais. Belo Horizonte: DCC, UFMG, 2026.
+
+COX, R.; KAASHOEK, F.; MORRIS, R. xv6: a simple, Unix-like teaching operating system. Cambridge: MIT PDOS, 2024. Disponível em: https://pdos.csail.mit.edu/6.828/2024/xv6.html. Acesso em: 26 abr. 2026.
 
 */
 
